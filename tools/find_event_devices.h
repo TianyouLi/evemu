@@ -25,6 +25,8 @@
 #ifndef FIND_EVENT_DEVICES_H
 #define FIND_EVENT_DEVICES_H
 
-char* find_event_devices(void);
+#include <stdbool.h>
+
+char* find_event_devices(bool scan);
 
 #endif

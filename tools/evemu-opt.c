@@ -4,12 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include "evemu-opt.h"
+#include "find_event_devices.h"
 
 struct option static evemu_options[] = {
   {"mouse",    required_argument, 0, 0},
   {"mouse-x",  required_argument, 0, 0},
   {"mouse-y",  required_argument, 0, 0},
   {"device",   required_argument, 0, 0},
+  {"list",   required_argument, 0, 0},
+  {"help",   required_argument, 0, 0},
   {0,          0,                 0, 0}
 };
 
@@ -18,12 +21,48 @@ static unsigned int evemu_options_count()
   return sizeof(evemu_options) / sizeof(struct option) -1;
 }
 
+
+void evemu_print_options() {
+  static char* opt_desc[] = {
+    "-m",
+    "--mouse",
+    "  Mouse input device node path, for example, /dev/input/event12",
+    "-x",
+    "--mouse-x",
+    "  Mouse initial X axis offset, for example, 100 or -100",
+    "-y",
+    "--mouse-y",
+    "  Mouse initial Y axis offset, for example, 100 or -100",
+    "-d",
+    "--device",
+    "  Other input device node path, for example, /dev/input/event10.",
+    "  You can specify multiple input device by using multiple -d options.",
+    "-l",
+    "--list",
+    "  List all input devices.",
+    "-h",
+    "--help",
+    "  Print this help.",
+    ""
+  };
+
+  char* prefix="  ";
+  char* surfix="\n";
+
+  for (int i=0; i< sizeof(opt_desc) / sizeof(char*); i++) {
+    printf("%s%s%s", prefix, opt_desc[i], surfix);
+  }
+}
+
+
 enum EvemuOptionType {
   None,
-    Mouse,
-    MouseX,
-    MouseY,
-    Device
+  Mouse,
+  MouseX,
+  MouseY,
+  Device,
+  List,
+  Help
 };
 
 static int evemu_option_type(int index, enum EvemuOptionType* opt_type)
@@ -44,6 +83,14 @@ static int evemu_option_type(int index, enum EvemuOptionType* opt_type)
   case 3:
   case 'd':
     *opt_type = Device;
+    break;
+  case 4:
+  case 'l':
+    *opt_type = List;
+    break;
+  case 5:
+  case 'h':
+    *opt_type = Help;
     break;
   default:
     return 0;
@@ -91,6 +138,12 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
       return 0;
     }
     break;
+  case List:
+    free(find_event_devices(false));
+    return 0;
+  case Help:
+    evemu_print_options();
+    return 0;
   default:
     return 0;
   }
@@ -98,45 +151,24 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
   return 1;
 }
 
-void evemu_print_options() {
-  static char* opt_desc[] = {
-    "-m",
-    "--mouse",
-    "  Mouse input device node path, for example, /dev/input/event12",
-    "",
-    "-x",
-    "--mouse-x",
-    "  Mouse initial X axis offset, for example, 100 or -100",
-    "",
-    "-y",
-    "--mouse-y",
-    "  Mouse initial Y axis offset, for example, 100 or -100",
-    "",
-    "-d",
-    "--device",
-    "  Other input device node path, for example, /dev/input/event10.",
-    "  You can specify multiple input device by using multiple -d options.",
-    ""
-  };
-
-  char* prefix="\t";
-  char* surfix="\n";
-
-  for (int i=0; i< sizeof(opt_desc) / sizeof(char*); i++) {
-    printf("%s%s%s", prefix, opt_desc[i], surfix);
-  }
-}
 
 int evemu_parse_options(int argc, char* argv[], struct EvemuOptions* opts)
 {
+  // initialize opt
   if (opts == NULL)
     return 0;
+  memset(opts, 0, sizeof(*opts));
+
+  // if argc too short, exit
+  if (argc < 2) {
+    evemu_print_options();
+    return 0;
+  }
 
   int c = 0;
-  memset(opts, 0, sizeof(*opts));
   do {
     int option_index = 0;
-    c = getopt_long(argc, argv, "m:d:x:y:", evemu_options, &option_index);
+    c = getopt_long(argc, argv, "m:d:x:y:lh", evemu_options, &option_index);
 
     switch(c) {
     case 0:
@@ -147,6 +179,8 @@ int evemu_parse_options(int argc, char* argv[], struct EvemuOptions* opts)
     case 'd':
     case 'x':
     case 'y':
+    case 'l':
+    case 'h':
       if (!evemu_update_options(c, optarg, opts))
         return 0;
       break;
@@ -166,44 +200,4 @@ int evemu_parse_options(int argc, char* argv[], struct EvemuOptions* opts)
   return 1;
 }
 
-
-
-#if 0
-/*testing*/
-
-static void evemu_dump_options(struct EvemuOptions* opts) {
-  if (opts == NULL) return;
-
-  if (opts->mouse) {
-    printf("Mouse is %s\n", opts->mouse);
-  }
-  if (opts->mouseX) {
-    printf("Mouse X is %d\n", opts->mouseX);
-  }
-  if (opts->mouseY) {
-    printf("Mouse Y is %d\n", opts->mouseY);
-  }
-
-  printf("Device count is %d\n",  opts->device_count);
-  for (int i = 0 ; i < opts->device_count; i++) {
-    printf("Device %d is %s\n", i, opts->devices[i]);
-  }
-}
-
-int main(int argc, char* argv[])
-{
-  struct EvemuOptions opts;
-
-  printf("\n---------------------------------\n");
-  for (int i = 0; i < argc; i++) {
-    printf("%s ", argv[i]);
-  }
-  printf("\n---------------------------------\n");
-  evemu_parse_options(argc, argv, &opts);
-  evemu_dump_options(&opts);
-  
-  return 0;
-}
-
-#endif
 

@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "find_event_devices.h"
 
 #define DEV_INPUT_EVENT "/dev/input"
 #define EVENT_DEV_NAME "event"
@@ -41,7 +42,7 @@ static int is_event_device(const struct dirent *dir) {
 	return strncmp(EVENT_DEV_NAME, dir->d_name, 5) == 0;
 }
 
-char* find_event_devices(void)
+char* find_event_devices(bool scan)
 {
 	struct dirent **namelist;
 	int i, ndev, devnum;
@@ -71,15 +72,18 @@ char* find_event_devices(void)
 		free(namelist[i]);
 	}
 
-	fprintf(stderr, "Select the device event number [0-%d]: ", ndev - 1);
-	scanf("%d", &devnum);
+  if (scan) {
+    fprintf(stderr, "Select the device event number [0-%d]: ", ndev - 1);
+    while (scanf("%d", &devnum) < 0);
+  }
 
 	if (devnum >= ndev || devnum < 0)
 		return NULL;
 
-	asprintf(&filename, "%s/%s%d",
+	if (asprintf(&filename, "%s/%s%d",
 		 DEV_INPUT_EVENT, EVENT_DEV_NAME,
-		 devnum);
+               devnum) <0 )
+    return NULL;
 
 	return filename;
 }

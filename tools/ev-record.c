@@ -49,9 +49,11 @@
 #include <signal.h>
 #include <time.h>
 
-#include "find_event_devices.h"
+#include "evemu-opt.h"
 
 #define INFINITE -1
+
+
 
 FILE *output;
 
@@ -82,35 +84,29 @@ static void handler (int sig __attribute__((unused)))
 	}
 }
 
-enum mode {
-	EVEMU_RECORD,
-	EVEMU_DESCRIBE
-};
 
 int main(int argc, char *argv[])
 {
-	enum mode mode = EVEMU_RECORD;
 	int fd;
 	struct sigaction act;
-	char *prgm_name = program_invocation_short_name;
-	char *device;
+  struct EvemuOptions opts;
 
-	if (prgm_name && (strcmp(prgm_name, "evemu-describe") == 0 ||
-			/* when run directly from the sources (not installed) */
-			strcmp(prgm_name, "lt-evemu-describe") == 0))
-		mode = EVEMU_DESCRIBE;
+  if (!evemu_parse_options(argc, argv, &opts)) {
+    return -1;
+  }
+  
 
-	device = (argc < 2) ? find_event_devices(true) : strdup(argv[1]);
+	/* char* device = (argc < 2) ? find_event_devices() : strdup(argv[1]); */
 
-	if (device == NULL) {
-		fprintf(stderr, "Usage: %s <device> [output file]\n", argv[0]);
-		return -1;
-	}
-	fd = open(device, O_RDONLY | O_NONBLOCK);
-	if (fd < 0) {
-		fprintf(stderr, "error: could not open device\n");
-		return -1;
-	}
+	/* if (device == NULL) { */
+	/* 	fprintf(stderr, "Usage: %s <device> [output file]\n", argv[0]); */
+	/* 	return -1; */
+	/* } */
+	/* fd = open(device, O_RDONLY | O_NONBLOCK); */
+	/* if (fd < 0) { */
+	/* 	fprintf(stderr, "error: could not open device\n"); */
+	/* 	return -1; */
+	/* } */
 
 	memset (&act, '\0', sizeof(act));
 	act.sa_handler = &handler;
@@ -138,27 +134,26 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	if (mode == EVEMU_RECORD) {
 #ifdef EVIOCSCLOCKID
-		int clockid = CLOCK_MONOTONIC;
-		ioctl(fd, EVIOCSCLOCKID, &clockid);
+  int clockid = CLOCK_MONOTONIC;
+  ioctl(fd, EVIOCSCLOCKID, &clockid);
 #endif
-		if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) {
-			fprintf(stderr, "error: this device is grabbed and I cannot record events\n");
-			fprintf(stderr, "see the evemu-record man page for more information\n");
-			return -1;
-		} else
-			ioctl(fd, EVIOCGRAB, (void*)0);
+  if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) {
+    fprintf(stderr, "error: this device is grabbed and I cannot record events\n");
+    fprintf(stderr, "see the evemu-record man page for more information\n");
+    return -1;
+  } else
+    ioctl(fd, EVIOCGRAB, (void*)0);
 
-		fprintf(output,  "################################\n");
-		fprintf(output,  "#      Waiting for events      #\n");
-		fprintf(output,  "################################\n");
-		if (evemu_record(output, fd, INFINITE))
-			fprintf(stderr, "error: could not describe device\n");
-	}
+  fprintf(output,  "################################\n");
+  fprintf(output,  "#      Waiting for events      #\n");
+  fprintf(output,  "################################\n");
+  if (evemu_record(output, fd, INFINITE))
+    fprintf(stderr, "error: could not describe device\n");
+
 
 out:
-	free(device);
+	//free(device);
 	close(fd);
 	if (output != stdout) {
 		fclose(output);
