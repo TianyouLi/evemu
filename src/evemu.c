@@ -618,6 +618,16 @@ int evemu_write_event(FILE *fp, const struct input_event *ev)
 	return rc;
 }
 
+int evemu_write_event_with_id(FILE *fp, const struct input_event *ev, int dev_id)
+{
+  int rc;
+	rc = fprintf(fp, "E: %d %lu.%06u %04x %04x %04d	", dev_id,
+               ev->time.tv_sec, (unsigned)ev->time.tv_usec,
+               ev->type, ev->code, ev->value);
+	rc += write_event_desc(fp, ev);
+	return rc;
+}
+
 static inline long time_to_long(const struct timeval *tv) {
 	return tv->tv_sec * 1000000 + tv->tv_usec;
 }
@@ -654,6 +664,53 @@ int evemu_record(FILE *fp, int fd, int ms)
 	}
 
 	return 0;
+}
+
+int evemu_record_all(FILE* fp, int* fds, int counts, int ms)
+{
+  struct pollfd* pfds = malloc(counts*sizeof(struct pollfd));
+  if (fds == NULL)
+    return -1;
+
+  for (int i =0; i < counts; i++) {
+    pfds[i].fd =fds[i];
+    pfds[i].events=POLLIN;
+    pfds[i].revents=0;
+  }
+
+  int ret = 0;
+  long offset = 0;
+  while (poll(pfds, counts, ms) >0) {
+    for (int i=0; i < counts; i++) {
+      if (pfds[i].revents == POLLIN) {
+        int fd = pfds[i].fd;
+        struct input_event ev;
+        SYSCALL(ret = read(fd, &ev, sizeof(ev)));
+        if (ret < 0)
+          break;
+        if (ret == sizeof(ev)) {
+          long time;
+          if (offset == 0)
+            offset = time_to_long(&ev.time);
+
+          time = time_to_long(&ev.time);
+          ev.time = long_to_time(time - offset);
+          evemu_write_event_with_id(fp, &ev, i);
+          fflush(fp);
+
+          ret =0;
+        }
+      }
+      
+      pfds[i].revents = 0;
+    }
+
+    if (ret != 0)
+      break;
+  }
+
+  free(pfds);
+  return ret;
 }
 
 int evemu_read_event(FILE *fp, struct input_event *ev)

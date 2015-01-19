@@ -388,7 +388,21 @@ int evemu_read_event_realtime(FILE *fp, struct input_event *ev,
  */
 int evemu_record(FILE *fp, int fd, int ms);
 
-
+/**
+ * evemu_record_call() - read events directly from multiple kernel device
+ * @fp: file pointer to write the events to
+ * @fds: file descriptor array of kernel device to read from
+ * @counts: number of devices in fds need to record
+ * @ms: maximum time to wait for an event to appear before reading (ms)
+ *
+ * Continuously reads events from the kernel device and writes them to
+ * the file. The function terminates after ms milliseconds of
+ * inactivity.
+ *
+ * Returns zero if successful, negative error otherwise.
+ */
+int evemu_record_all(FILE* fp, int* fds, int counts, int ms);
+  
 /**
  * evemu_play_one() - play one event to kernel device
  * @fd: file descriptor of kernel device to write to

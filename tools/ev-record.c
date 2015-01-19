@@ -138,13 +138,13 @@ int dev_init_all(int* fds, struct EvemuOptions* opts) {
   return -1;
 }  
 
-int dev_describe_mouse(int fd, char* dev_name, int x, int y, FILE* fp) {
+int dev_describe_mouse(int id, int fd, char* dev_name, int x, int y, FILE* fp) {
   // Every device start from [Device_Begin], and end with [Device_End]
   fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "id = %d\n", id);
   fprintf(fp, "type = mouse\n");
-  fprintf(fp, "name = %s", dev_name);
-  fprintf(fp, "X = %d", x);
-  fprintf(fp, "Y = %d", y);
+  fprintf(fp, "X = %d\n", x);
+  fprintf(fp, "Y = %d\n", y);
 
   int ret = describe_device(fd, fp);
   
@@ -153,10 +153,11 @@ int dev_describe_mouse(int fd, char* dev_name, int x, int y, FILE* fp) {
   return ret;
 }
 
-int dev_describe_device(int fd, char* dev_name, FILE* fp) {
+int dev_describe_device(int id, int fd, char* dev_name, FILE* fp) {
   fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "id = %d\n", id);
   fprintf(fp, "type = unknown\n");
-  fprintf(fp, "name = %s", dev_name);
+  fprintf(fp, "name = %s\n", dev_name);
 
   int ret = describe_device(fd, fp);
   
@@ -170,20 +171,56 @@ int dev_describe_all(int* fds, struct EvemuOptions* opts, FILE* fp) {
   int ret = 0;
   if (opts->mouse != NULL) {
     offset = 1;
-    ret = dev_describe_mouse(fds[0], opts->mouse, opts->mouseX, opts->mouseY, fp);
+    ret = dev_describe_mouse(0, fds[0], opts->mouse, opts->mouseX, opts->mouseY, fp);
   }
 
   if (ret) 
     return ret;
   
   for (int i =0; i < opts->device_count; i++) {
-    ret = dev_describe_device(fds[i+offset], opts->devices[i], fp);
+    ret = dev_describe_device(i+offset, fds[i+offset], opts->devices[i], fp);
     if (ret) {
       break;
     }
   }
   
   return ret;
+}
+
+int sig_handler_install() {
+  struct sigaction act;
+	memset (&act, '\0', sizeof(act));
+	act.sa_handler = &handler;
+
+	if (sigaction(SIGTERM, &act, NULL) < 0) {
+		fprintf (stderr, "Could not attach TERM signal handler.\n");
+		return -1;
+	}
+	if (sigaction(SIGINT, &act, NULL) < 0) {
+		fprintf (stderr, "Could not attach INT signal handler.\n");
+		return -1;
+	}
+
+  return 0;
+}
+
+int dev_grab_all(int* fds, struct EvemuOptions* opts) {
+  int dev_count = opts->mouse == NULL? opts->device_count : opts->device_count+1;
+  
+  for (int i =0; i < dev_count; i++) {
+    int fd = fds[i];
+#ifdef EVIOCSCLOCKID
+    int clockid = CLOCK_MONOTONIC;
+    ioctl(fd, EVIOCSCLOCKID, &clockid);
+#endif
+    if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) {
+      fprintf(stderr, "error: this device is grabbed and I cannot record events\n");
+      fprintf(stderr, "see the evemu-record man page for more information\n");
+      return -1;
+    } 
+  }
+  
+  return 0;
 }
 
 int main(int argc, char *argv[])
@@ -200,43 +237,28 @@ int main(int argc, char *argv[])
   
   // Create devices and write to output file. If any of devices failed
   // to initialize, then abort the whole application.
+  // Note: from now on, fds was filled with values, need to use goto out
+  // to clean up resource if error happens
 	if (dev_init_all(fds, &opts))
     return -1;
-  
+
   // Write fds to stdout, make sure it can be read back during replay 
   if (dev_describe_all(fds, &opts, stdout))
-    return -1;
+    goto out;
+
+  // Grab all devices for record
+  if (dev_grab_all(fds, &opts)) 
+    goto out;
   
-  struct sigaction act;
-	memset (&act, '\0', sizeof(act));
-	act.sa_handler = &handler;
+  // Install sig handler
+  output = stdout;
+  if (sig_handler_install())
+    goto out;
 
-	if (sigaction(SIGTERM, &act, NULL) < 0) {
-		fprintf (stderr, "Could not attach TERM signal handler.\n");
-		return 1;
-	}
-	if (sigaction(SIGINT, &act, NULL) < 0) {
-		fprintf (stderr, "Could not attach INT signal handler.\n");
-		return 1;
-	}
-
-/* #ifdef EVIOCSCLOCKID */
-/*   int clockid = CLOCK_MONOTONIC; */
-/*   ioctl(fd, EVIOCSCLOCKID, &clockid); */
-/* #endif */
-/*   if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) { */
-/*     fprintf(stderr, "error: this device is grabbed and I cannot record events\n"); */
-/*     fprintf(stderr, "see the evemu-record man page for more information\n"); */
-/*     return -1; */
-/*   } else */
-/*     ioctl(fd, EVIOCGRAB, (void*)0); */
-
-/*   fprintf(output,  "################################\n"); */
-/*   fprintf(output,  "#      Waiting for events      #\n"); */
-/*   fprintf(output,  "################################\n"); */
-/*   if (evemu_record(output, fd, INFINITE)) */
-/*     fprintf(stderr, "error: could not describe device\n"); */
-
+  // We now start recording
+  int count = opts.mouse == NULL? opts.device_count : opts.device_count +1;
+  if (evemu_record_all(stdout, fds, count, INFINITE))
+    goto out;
 
 out:
   dev_clean_all(fds, MAX_DEVICES+1);
