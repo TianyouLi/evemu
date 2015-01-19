@@ -140,7 +140,7 @@ int dev_init_all(int* fds, struct EvemuOptions* opts) {
 
 int dev_describe_mouse(int id, int fd, char* dev_name, int x, int y, FILE* fp) {
   // Every device start from [Device_Begin], and end with [Device_End]
-  fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "[Device Begin]\n");
   fprintf(fp, "id = %d\n", id);
   fprintf(fp, "type = mouse\n");
   fprintf(fp, "X = %d\n", x);
@@ -148,20 +148,20 @@ int dev_describe_mouse(int id, int fd, char* dev_name, int x, int y, FILE* fp) {
 
   int ret = describe_device(fd, fp);
   
-  fprintf(fp, "\n[Device_End]\n");
+  fprintf(fp, "[Device End]\n");
 
   return ret;
 }
 
 int dev_describe_device(int id, int fd, char* dev_name, FILE* fp) {
-  fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "\n[Device Begin]\n");
   fprintf(fp, "id = %d\n", id);
   fprintf(fp, "type = unknown\n");
   fprintf(fp, "name = %s\n", dev_name);
 
   int ret = describe_device(fd, fp);
   
-  fprintf(fp, "\n[Device_End]\n");
+  fprintf(fp, "\n[Device End]\n");
 
   return ret;
 }
@@ -169,8 +169,13 @@ int dev_describe_device(int id, int fd, char* dev_name, FILE* fp) {
 int dev_describe_all(int* fds, struct EvemuOptions* opts, FILE* fp) {
   int offset = 0;
   int ret = 0;
+
+  offset = opts->mouse != NULL? 1:0;
+  fprintf(fp, "[Devices Begin]\n");
+  fprintf(fp, "count = %d\n", opts->device_count + offset);
+  fprintf(fp, "[Devices End]\n");
+  
   if (opts->mouse != NULL) {
-    offset = 1;
     ret = dev_describe_mouse(0, fds[0], opts->mouse, opts->mouseX, opts->mouseY, fp);
   }
 

@@ -8,7 +8,8 @@ bin_PROGRAMS = \
 	evemu-record \
 	evemu-play \
 	evemu-event \
-	ev-record
+	ev-record \
+	ev-replay
 
 LDFLAGS = -all-static
 
@@ -31,6 +32,9 @@ ev_opt_test_CFLAGS = $(ev_tool_CFLAGS)
 
 ev_record_SOURCES = ev-record.c $(ev_tool_SOURCES) 
 ev_record_CFLAGS = $(ev_tool_CFLAGS)
+
+ev_replay_SOURCES = ev-replay.c $(ev_tool_SOURCES)
+ev_replay_CFLAGS = $(ev_tool_CFLAGS)
 
 # man page generation
 if HAVE_DOCTOOLS

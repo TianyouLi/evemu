@@ -672,6 +672,8 @@ int evemu_record_all(FILE* fp, int* fds, int counts, int ms)
   if (fds == NULL)
     return -1;
 
+  fprintf(fp, "[Events]\n");
+  
   for (int i =0; i < counts; i++) {
     pfds[i].fd =fds[i];
     pfds[i].events=POLLIN;

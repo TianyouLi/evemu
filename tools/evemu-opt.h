@@ -21,4 +21,11 @@ struct EvemuOptions {
 int
 evemu_parse_options(int argc, char* argv[], struct EvemuOptions* opts);
 
+/***
+ * Dump EvemuOptions to stderr
+ */
+void
+evemu_dump_options(struct EvemuOptions* opts);
+
+  
 #endif
