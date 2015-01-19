@@ -230,6 +230,28 @@ int read_device_type(char* value, struct EvemuOptions* opts) {
   return ret;
 }
 
+int read_device_X(char* value, struct EvemuOptions* opts) {
+  int ret = 0;
+  if (strcmp("mouse", device_type)) {
+    ret = -1;
+  } else {
+    opts->mouseX = atoi(value);
+  }
+
+  return ret;
+}
+
+int read_device_Y(char* value, struct EvemuOptions* opts) {
+  int ret = 0;
+  if (strcmp("mouse", device_type)) {
+    ret = -1;
+  } else {
+    opts->mouseY = atoi(value);
+  }
+
+  return ret;
+}
+
 int read_device_content(char* line, struct EvemuOptions* opts) {
   // local 
   char* key = NULL;
@@ -255,6 +277,15 @@ int read_device_content(char* line, struct EvemuOptions* opts) {
     goto out;
   }
 
+  if (!strcmp("X", key)) {
+    ret = read_device_X(value, opts);
+    goto out;
+  }
+
+  if (!strcmp("Y", key)) {
+    ret = read_device_Y(value, opts);
+    goto out;
+  }
   
  out:
   free_pair(&key, &value);
