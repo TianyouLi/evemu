@@ -80,7 +80,7 @@ char* find_event_devices(bool scan)
 	if (devnum >= ndev || devnum < 0)
 		return NULL;
 
-	if (asprintf(&filename, "%s/%s%d",
+	if (!scan || asprintf(&filename, "%s/%s%d",
 		 DEV_INPUT_EVENT, EVENT_DEV_NAME,
                devnum) <0 )
     return NULL;

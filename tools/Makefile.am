@@ -32,7 +32,6 @@ ev_opt_test_CFLAGS = $(ev_tool_CFLAGS)
 ev_record_SOURCES = ev-record.c $(ev_tool_SOURCES) 
 ev_record_CFLAGS = $(ev_tool_CFLAGS)
 
-
 # man page generation
 if HAVE_DOCTOOLS
 # actual man pages

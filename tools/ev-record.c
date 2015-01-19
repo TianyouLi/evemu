@@ -57,7 +57,7 @@
 
 FILE *output;
 
-static int describe_device(int fd)
+static int describe_device(int fd, FILE* fp)
 {
 	struct evemu_device *dev;
 	int ret = -ENOMEM;
@@ -69,7 +69,7 @@ static int describe_device(int fd)
 	if (ret)
 		goto out;
 
-	evemu_write(dev, stdout);
+	evemu_write(dev, fp);
 out:
 	evemu_delete(dev);
 	return ret;
@@ -85,29 +85,129 @@ static void handler (int sig __attribute__((unused)))
 }
 
 
+void dev_clean_all(int* fds, int max) {
+  for (int i=0; i < max; i++) {
+    if (fds != 0) {
+      close(fds[i]);
+      fds[i] =0;
+    }
+  }
+}
+
+int dev_init_device(char* dev_name) {
+	char* device = dev_name;
+
+	int fd = open(device, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		fprintf(stderr, "error: could not open device %s\n", device);
+		return -1;
+	}
+
+  return fd;
+}
+
+int dev_init_mouse(char* dev_name, int x, int y) {
+  return dev_init_device(dev_name);
+}
+
+int dev_init_all(int* fds, struct EvemuOptions* opts) {
+  int offset =0;
+  if (opts->mouse != NULL) {
+    int fd = dev_init_mouse(opts->mouse, opts->mouseX, opts->mouseY);
+    if (fd != -1) {
+      fds[0] = fd;
+      offset =1;
+    } else {
+      goto out;
+    }
+  }
+  
+  for (int i =0; i < opts->device_count; i++) {
+    int fd = dev_init_device(opts->devices[i]);
+    if (fd != -1) {
+      fds[i+offset] = fd;
+    } else {
+      goto out;
+    }
+  }
+
+  return 0;
+  
+ out:
+  dev_clean_all(fds, opts->device_count +1);
+  return -1;
+}  
+
+int dev_describe_mouse(int fd, char* dev_name, int x, int y, FILE* fp) {
+  // Every device start from [Device_Begin], and end with [Device_End]
+  fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "type = mouse\n");
+  fprintf(fp, "name = %s", dev_name);
+  fprintf(fp, "X = %d", x);
+  fprintf(fp, "Y = %d", y);
+
+  int ret = describe_device(fd, fp);
+  
+  fprintf(fp, "\n[Device_End]\n");
+
+  return ret;
+}
+
+int dev_describe_device(int fd, char* dev_name, FILE* fp) {
+  fprintf(fp, "\n[Device_Begin]\n");
+  fprintf(fp, "type = unknown\n");
+  fprintf(fp, "name = %s", dev_name);
+
+  int ret = describe_device(fd, fp);
+  
+  fprintf(fp, "\n[Device_End]\n");
+
+  return ret;
+}
+
+int dev_describe_all(int* fds, struct EvemuOptions* opts, FILE* fp) {
+  int offset = 0;
+  int ret = 0;
+  if (opts->mouse != NULL) {
+    offset = 1;
+    ret = dev_describe_mouse(fds[0], opts->mouse, opts->mouseX, opts->mouseY, fp);
+  }
+
+  if (ret) 
+    return ret;
+  
+  for (int i =0; i < opts->device_count; i++) {
+    ret = dev_describe_device(fds[i+offset], opts->devices[i], fp);
+    if (ret) {
+      break;
+    }
+  }
+  
+  return ret;
+}
+
 int main(int argc, char *argv[])
 {
-	int fd;
-	struct sigaction act;
-  struct EvemuOptions opts;
-
+  // Parse options
+  struct EvemuOptions opts; 
   if (!evemu_parse_options(argc, argv, &opts)) {
     return -1;
   }
+
+  // Create device fd, and initialize it
+  int fds[MAX_DEVICES+1];
+  memset(fds, 0, sizeof(fds));
   
-
-	/* char* device = (argc < 2) ? find_event_devices() : strdup(argv[1]); */
-
-	/* if (device == NULL) { */
-	/* 	fprintf(stderr, "Usage: %s <device> [output file]\n", argv[0]); */
-	/* 	return -1; */
-	/* } */
-	/* fd = open(device, O_RDONLY | O_NONBLOCK); */
-	/* if (fd < 0) { */
-	/* 	fprintf(stderr, "error: could not open device\n"); */
-	/* 	return -1; */
-	/* } */
-
+  // Create devices and write to output file. If any of devices failed
+  // to initialize, then abort the whole application.
+	if (dev_init_all(fds, &opts))
+    return -1;
+  
+  // Write fds to stdout, make sure it can be read back during replay 
+  if (dev_describe_all(fds, &opts, stdout))
+    return -1;
+  
+  struct sigaction act;
 	memset (&act, '\0', sizeof(act));
 	act.sa_handler = &handler;
 
@@ -120,44 +220,26 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (argc < 3)
-		output = stdout;
-	else {
-		output = fopen(argv[2], "w");
-		if (!output) {
-			fprintf(stderr, "error: could not open output file");
-		}
-	}
+/* #ifdef EVIOCSCLOCKID */
+/*   int clockid = CLOCK_MONOTONIC; */
+/*   ioctl(fd, EVIOCSCLOCKID, &clockid); */
+/* #endif */
+/*   if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) { */
+/*     fprintf(stderr, "error: this device is grabbed and I cannot record events\n"); */
+/*     fprintf(stderr, "see the evemu-record man page for more information\n"); */
+/*     return -1; */
+/*   } else */
+/*     ioctl(fd, EVIOCGRAB, (void*)0); */
 
-	if (describe_device(fd)) {
-		fprintf(stderr, "error: could not describe device\n");
-		goto out;
-	}
-
-#ifdef EVIOCSCLOCKID
-  int clockid = CLOCK_MONOTONIC;
-  ioctl(fd, EVIOCSCLOCKID, &clockid);
-#endif
-  if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) {
-    fprintf(stderr, "error: this device is grabbed and I cannot record events\n");
-    fprintf(stderr, "see the evemu-record man page for more information\n");
-    return -1;
-  } else
-    ioctl(fd, EVIOCGRAB, (void*)0);
-
-  fprintf(output,  "################################\n");
-  fprintf(output,  "#      Waiting for events      #\n");
-  fprintf(output,  "################################\n");
-  if (evemu_record(output, fd, INFINITE))
-    fprintf(stderr, "error: could not describe device\n");
+/*   fprintf(output,  "################################\n"); */
+/*   fprintf(output,  "#      Waiting for events      #\n"); */
+/*   fprintf(output,  "################################\n"); */
+/*   if (evemu_record(output, fd, INFINITE)) */
+/*     fprintf(stderr, "error: could not describe device\n"); */
 
 
 out:
-	//free(device);
-	close(fd);
-	if (output != stdout) {
-		fclose(output);
-		output = stdout;
-	}
+  dev_clean_all(fds, MAX_DEVICES+1);
+	
 	return 0;
 }

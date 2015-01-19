@@ -50,7 +50,7 @@ void evemu_print_options() {
   char* surfix="\n";
 
   for (int i=0; i< sizeof(opt_desc) / sizeof(char*); i++) {
-    printf("%s%s%s", prefix, opt_desc[i], surfix);
+    fprintf(stderr, "%s%s%s", prefix, opt_desc[i], surfix);
   }
 }
 
@@ -107,7 +107,7 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
   switch (opt_type) {
   case Mouse:
     if (opts->mouse) {
-      printf("Mouse device %s has already been specified.\n"
+      fprintf(stderr, "Mouse device %s has already been specified.\n"
              "Only one mouse device can be specified by -m or --mouse.\n", arg);
       return 0;
     }
@@ -115,7 +115,7 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
     break;
   case MouseX:
     if (opts->mouseX) {
-      printf("Mouse X %s has already been specified.\n"
+      fprintf(stderr, "Mouse X %s has already been specified.\n"
              "Only one mouse device can be specified by -x or --mouse-x.\n", arg);
       return 0;
     }
@@ -123,7 +123,7 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
     break;
   case MouseY:
     if (opts->mouseY) {
-      printf("Mouse Y %s has already been specified.\n"
+      fprintf(stderr, "Mouse Y %s has already been specified.\n"
              "Only one mouse device can be specified by -y or --mouse-y.\n", arg);
       return 0;
     }
@@ -134,7 +134,7 @@ static int evemu_update_options(int index, char* arg, struct EvemuOptions* opts)
       opts->devices[opts->device_count] = arg;
       opts->device_count++;
     } else {
-      printf("You can not specify the number of --device greater than %d.\n", MAX_DEVICES);
+      fprintf(stderr, "You can not specify the number of --device greater than %d.\n", MAX_DEVICES);
       return 0;
     }
     break;
