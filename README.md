@@ -18,6 +18,10 @@ Usage
     ./ev-replay < record.txt
     Above command will replay all your recorded events. It will create uinput device so you can run this on a device/computer even without the actual device.
 
+Bugs
+----
+This tool was developed in about 3 days, without extensive test. Please expect bugs and you can report here or mailto me. Thanks.
+
 evemu - Kernel device emulation
 -------------------------------
 
