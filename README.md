@@ -9,13 +9,13 @@ Usage
 -----
 - record with devices:
 
-    ./ev-record -m /dev/input/event14 -d /dev/input/event15 -x 2000 -y 2000 > record.txt
+    _./ev-record -m /dev/input/event14 -d /dev/input/event15 -x 2000 -y 2000 > record.txt_
     
     Above command will record mouse and keyboard event, with initial mouse position set to (2000,2000). Please note you can use ev-record -l to list all devices, and then select mouse device with -m option.
 
 - replay with recording file
 
-    ./ev-replay < record.txt
+    _./ev-replay < record.txt_
     
     Above command will replay all your recorded events. It will create uinput device so you can run this on a device/computer even without the actual device.
 
