@@ -5,6 +5,19 @@ This package was developed on top of evemu tool mentioned below. It provide reco
 * ev-record
 * ev-replay
 
+Usage
+-----
+- record with devices:
+
+    ./ev-record -m /dev/input/event14 -d /dev/input/event15 -x 2000 -y 2000 > record.txt
+    
+    Above command will record mouse and keyboard event, with initial mouse position set to (2000,2000). Please note you can use ev-record -l to list all devices, and then select mouse device with -m option.
+
+- replay with recording file
+
+    ./ev-replay < record.txt
+    Above command will replay all your recorded events. It will create uinput device so you can run this on a device/computer even without the actual device.
+
 evemu - Kernel device emulation
 -------------------------------
 
