@@ -510,7 +510,7 @@ int evemu_play_with_id(FILE *fp, struct UinputDevice* uds)
 }
 
 
-int write_event(int fd, int type, int code, int value) {
+static int write_event(int fd, int type, int code, int value) {
     struct input_event ev;
     ev.type = type;
     ev.code = code;

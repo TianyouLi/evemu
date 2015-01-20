@@ -97,7 +97,7 @@ void dev_clean_all(int* fds, int max) {
 int dev_init_device(char* dev_name) {
 	char* device = dev_name;
 
-	int fd = open(device, O_RDONLY | O_NONBLOCK);
+	int fd = open(device, O_RDWR | O_NONBLOCK);
 	if (fd < 0) {
 		fprintf(stderr, "error: could not open device %s\n", device);
 		return -1;
@@ -138,6 +138,15 @@ int dev_init_all(int* fds, struct EvemuOptions* opts) {
   return -1;
 }  
 
+static int write_event(int fd, int type, int code, int value) {
+    struct input_event ev;
+    ev.type = type;
+    ev.code = code;
+    ev.value= value;
+
+    return write(fd, &ev, sizeof(ev)); 
+}
+
 int dev_describe_mouse(int id, int fd, char* dev_name, int x, int y, FILE* fp) {
   // Every device start from [Device_Begin], and end with [Device_End]
   fprintf(fp, "[Device Begin]\n");
@@ -147,9 +156,20 @@ int dev_describe_mouse(int id, int fd, char* dev_name, int x, int y, FILE* fp) {
   fprintf(fp, "Y = %d\n", y);
 
   int ret = describe_device(fd, fp);
-  
   fprintf(fp, "[Device End]\n");
 
+  // initialize mouse position if there have
+  for (int i =0 ; i < x; i++) {
+    write_event(fd, EV_REL, REL_X, 1);
+    write_event(fd, EV_SYN, SYN_REPORT, 0);
+    usleep(500);
+  }
+  for (int i =0; i < y; i++) {
+    write_event(fd, EV_REL, REL_Y, 1);
+    write_event(fd, EV_SYN, SYN_REPORT, 0);
+    usleep(500);
+  }
+    
   return ret;
 }
 
@@ -247,14 +267,15 @@ int main(int argc, char *argv[])
 	if (dev_init_all(fds, &opts))
     return -1;
 
-  // Write fds to stdout, make sure it can be read back during replay 
-  if (dev_describe_all(fds, &opts, stdout))
-    goto out;
-
   // Grab all devices for record
   if (dev_grab_all(fds, &opts)) 
     goto out;
   
+  
+  // Write fds to stdout, make sure it can be read back during replay 
+  if (dev_describe_all(fds, &opts, stdout))
+    goto out;
+
   // Install sig handler
   output = stdout;
   if (sig_handler_install())
