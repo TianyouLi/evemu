@@ -218,11 +218,11 @@ int dev_grab_all(int* fds, struct EvemuOptions* opts) {
     int clockid = CLOCK_MONOTONIC;
     ioctl(fd, EVIOCSCLOCKID, &clockid);
 #endif
-    if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) {
-      fprintf(stderr, "error: this device is grabbed and I cannot record events\n");
-      fprintf(stderr, "see the evemu-record man page for more information\n");
-      return -1;
-    } 
+    /* if (ioctl(fd, EVIOCGRAB, (void*)1) < 0) { */
+    /*   fprintf(stderr, "error: this device is grabbed and I cannot record events\n"); */
+    /*   fprintf(stderr, "see the evemu-record man page for more information\n"); */
+    /*   return -1; */
+    /* } */ 
   }
   
   return 0;
