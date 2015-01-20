@@ -16,6 +16,7 @@ Usage
 - replay with recording file
 
     ./ev-replay < record.txt
+    
     Above command will replay all your recorded events. It will create uinput device so you can run this on a device/computer even without the actual device.
 
 Bugs
