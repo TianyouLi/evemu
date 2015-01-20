@@ -1,4 +1,4 @@
-ev-tools - Kernel devices emulation
+ev-tools - record/replay with kernel devices emulation
 ===================================
 
 This package was developed on top of evemu tool mentioned below. It provide record and replay multiple devices at same time with new command line:
